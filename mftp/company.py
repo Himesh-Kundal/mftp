@@ -54,36 +54,100 @@ def fetch(session, headers, ssoToken):
 
     fetched_companies = []
     for row in root.findall("row"):
-        jd_args = row.find("cell[4]").text.split("'")[5].split('"')
-        jnf_id, com_id, year = jd_args[1], jd_args[3], jd_args[5]
+        try:
+            cell4 = row.find("cell[4]")
+            if cell4 is not None and cell4.text is not None:
+                jd_args = cell4.text.split("'")
+                if len(jd_args) >= 6:
+                    jnf_id, com_id, year = jd_args[1], jd_args[3], jd_args[5]
+                else:
+                    try:
+                        jd_text = cell4.text
+                        jnf_pattern = "jnf_id="
+                        com_pattern = "com_id="
+                        year_pattern = "yop="
+                        
+                        jnf_idx = jd_text.find(jnf_pattern)
+                        com_idx = jd_text.find(com_pattern)
+                        year_idx = jd_text.find(year_pattern)
+                        
+                        jnf_id = "unknown"
+                        com_id = "unknown"
+                        year = "unknown"
+                        
+                        if jnf_idx > 0:
+                            jnf_text = jd_text[jnf_idx + len(jnf_pattern):]
+                            jnf_id = jnf_text.split("&")[0]
+                        
+                        if com_idx > 0:
+                            com_text = jd_text[com_idx + len(com_pattern):]
+                            com_id = com_text.split("&")[0]
+                        
+                        if year_idx > 0:
+                            year_text = jd_text[year_idx + len(year_pattern):]
+                            year = year_text.split("&")[0]
+                        
+                        if jnf_id == "unknown" or com_id == "unknown" or year == "unknown":
+                            logging.error(f"Failed to extract jnf_id, com_id, or year using fallback method")
+                            continue
+                    except Exception as e:
+                        logging.error(f"Invalid format for jd_args and fallback extraction failed: {e}")
+                        continue
+            else:
+                logging.error("Missing cell[4] for company information")
+                continue
 
-        # Links
-        company_details = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/TPComView.jsp?yop={year}&com_id={com_id}&user_type=SU"
-        company_additional_details = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/AdmFilePDF.htm?type=COM&year={year}&com_id={com_id}"
-        ppt = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/AdmFilePDF.htm?type=PPT&year={year}&com_id={com_id}"
-        jd = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/TPJNFView.jsp?jnf_id={jnf_id}&com_id={com_id}&yop={year}&user_type=SU&rollno={ROLL_NUMBER}"
-        apply_link_cv = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/TPJNFViewAction.jsp?jnf_id={jnf_id}&com_id={com_id}&year={year}&rollno={ROLL_NUMBER}&mode=ApplyCV"
-        additional_jd = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/JnfMoreDet.jsp?mode=jnfMoreDet&rollno={ROLL_NUMBER}&year={year}&com_id={com_id}&jnf_id={jnf_id}"
-        form_additional_details = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/AdmFilePDF.htm?type=JNF&year={year}&jnf_id={jnf_id}&com_id={com_id}"
+            # Links
+            company_details = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/TPComView.jsp?yop={year}&com_id={com_id}&user_type=SU"
+            company_additional_details = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/AdmFilePDF.htm?type=COM&year={year}&com_id={com_id}"
+            ppt = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/AdmFilePDF.htm?type=PPT&year={year}&com_id={com_id}"
+            jd = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/TPJNFView.jsp?jnf_id={jnf_id}&com_id={com_id}&yop={year}&user_type=SU&rollno={ROLL_NUMBER}"
+            apply_link_cv = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/TPJNFViewAction.jsp?jnf_id={jnf_id}&com_id={com_id}&year={year}&rollno={ROLL_NUMBER}&mode=ApplyCV"
+            additional_jd = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/JnfMoreDet.jsp?mode=jnfMoreDet&rollno={ROLL_NUMBER}&year={year}&com_id={com_id}&jnf_id={jnf_id}"
+            form_additional_details = f"https://erp.iitkgp.ac.in/TrainingPlacementSSO/AdmFilePDF.htm?type=JNF&year={year}&jnf_id={jnf_id}&com_id={com_id}"
+            
+            # Extract name safely
+            cell1 = row.find("cell[1]")
+            name = "Unknown"
+            if cell1 is not None and cell1.text is not None:
+                try:
+                    name_parts = cell1.text.split(">")
+                    if len(name_parts) >= 2:
+                        name = name_parts[1].split("<")[0].strip()
+                except Exception as e:
+                    logging.error(f"Error extracting company name: {e}")
 
-        company_info = {
-            "Name": row.find("cell[1]").text.split(">")[1].split("<")[0].strip(),
-            "Company_Details": company_details,
-            "Company_Additional_Details": company_additional_details,
-            "PPT": ppt,
-            "Role": row.find("cell[4]").text.split("'")[1].strip(),
-            "Job_Description": jd,
-            "Apply_Link_CV": apply_link_cv,
-            "Additional_Job_Description": additional_jd,
-            "CTC": get_ctc_with_currency(session, headers, additional_jd),
-            "Form_Additional_Details": form_additional_details,
-            "Application_Status": row.find("cell[9]").text.strip() if row.find("cell[9]").text.strip() else "N",
-            "Start_Date": row.find("cell[10]").text.strip(),
-            "End_Date": row.find("cell[11]").text.strip(),
-            "Interview_Date": row.find("cell[12]").text.strip() if row.find("cell[12]").text.strip() else None,
-        }
-        
-        fetched_companies.append(company_info)
+            # Extract role safely
+            role = "Unknown"
+            if cell4 is not None and cell4.text is not None:
+                try:
+                    role_parts = cell4.text.split("'")
+                    if len(role_parts) >= 2:
+                        role = role_parts[1].strip()
+                except Exception as e:
+                    logging.error(f"Error extracting role: {e}")
+
+            company_info = {
+                "Name": name,
+                "Company_Details": company_details,
+                "Company_Additional_Details": company_additional_details,
+                "PPT": ppt,
+                "Role": role,
+                "Job_Description": jd,
+                "Apply_Link_CV": apply_link_cv,
+                "Additional_Job_Description": additional_jd,
+                "CTC": get_ctc_with_currency(session, headers, additional_jd),
+                "Form_Additional_Details": form_additional_details,
+                "Application_Status": row.find("cell[9]").text.strip() if row.find("cell[9]") is not None and row.find("cell[9]").text is not None else "N",
+                "Start_Date": row.find("cell[10]").text.strip() if row.find("cell[10]") is not None and row.find("cell[10]").text is not None else "",
+                "End_Date": row.find("cell[11]").text.strip() if row.find("cell[11]") is not None and row.find("cell[11]").text is not None else "",
+                "Interview_Date": row.find("cell[12]").text.strip() if row.find("cell[12]") is not None and row.find("cell[12]").text is not None else None,
+            }
+            
+            fetched_companies.append(company_info)
+        except Exception as e:
+            logging.error(f"Error processing company: {e}")
+            continue
     
     stored_companies = get_list()
     new_companies, modified_companies = get_new_and_modified_companies(fetched_companies, stored_companies)

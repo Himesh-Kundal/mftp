@@ -30,15 +30,43 @@ def fetch(headers, session, ssoToken, notice_db):
         if i >= LAST_NOTICES_CHECK_COUNT:
             break
 
-        id_ = row.find('cell[1]').text.strip()
-        year = root.findall('row')[0].find('cell[8]').text.split('"')[1].strip()
-        notice = {
-            'UID': f'{id_}_{year}',
-            'Time': row.find('cell[7]').text.strip(),
-            'Type': row.find('cell[2]').text.strip(),
-            'Subject': row.find('cell[3]').text.strip(),
-            'Company': row.find('cell[4]').text.strip(),
-        }
+        # Safe extraction with null checks
+        try:
+            id_cell = row.find('cell[1]')
+            if id_cell is None or id_cell.text is None:
+                logging.warning(f" Skipping row {i}: Missing ID cell")
+                continue
+            id_ = id_cell.text.strip()
+
+            year_cell = root.findall('row')[0].find('cell[8]')
+            if year_cell is None or year_cell.text is None:
+                logging.warning(f" Skipping row {i}: Missing year cell")
+                continue
+            year = year_cell.text.split('"')[1].strip()
+
+            # Extract other fields with safe null checks
+            time_cell = row.find('cell[7]')
+            time_text = time_cell.text.strip() if time_cell is not None and time_cell.text is not None else ''
+            
+            type_cell = row.find('cell[2]')
+            type_text = type_cell.text.strip() if type_cell is not None and type_cell.text is not None else ''
+            
+            subject_cell = row.find('cell[3]')
+            subject_text = subject_cell.text.strip() if subject_cell is not None and subject_cell.text is not None else ''
+            
+            company_cell = row.find('cell[4]')
+            company_text = company_cell.text.strip() if company_cell is not None and company_cell.text is not None else ''
+
+            notice = {
+                'UID': f'{id_}_{year}',
+                'Time': time_text,
+                'Type': type_text,
+                'Subject': subject_text,
+                'Company': company_text,
+            }
+        except Exception as e:
+            logging.error(f" Failed to parse row {i}: {str(e)}")
+            continue
 
         # Handling Body
         try:

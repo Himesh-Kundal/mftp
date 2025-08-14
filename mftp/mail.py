@@ -193,28 +193,28 @@ def send_companies(mail, gmail_api, smtp):
                 logging.error(f" Failed to Send Mail : {mail['Subject']} ~ {str(e)}")
 
 
-def format_companies(ssoToken, companies):
+def format_companies(companies):
     print('[FORMATTING COMPANY UPDATES]', flush=True)
 
     message = MIMEMultipart()
-    message["Subject"] = f"{HOSTER_NAME} Apply Now! New companies opened"
+    message["Subject"] = "New Company Opportunities Available - Apply Now!"
     message["From"] = f'MFTP < {FROM_EMAIL} >'
-    message["Bcc"] = ", ".join(HOSTER_EMAIL)
+    message["Bcc"] = ", ".join(BCC_EMAIL_S)
 
     def generate_row(company):
         return f"""
         <tr>
             <td style="border: 1px solid #ddd; padding: 8px;">
-                <a href="{company['Company_Additional_Details']}&ssoToken={ssoToken}" target="_blank">{company['Name']}</a>
+                <a href="{company['Company_Additional_Details']}" target="_blank">{company['Name']}</a>
             </td>
             <td style="border: 1px solid #ddd; padding: 8px;">
                 {company['Role']} 
-                (<a href="{company['Apply_Link_CV']}1&ssoToken={ssoToken}" target="_blank">CV1</a>,
-                 <a href="{company['Apply_Link_CV']}2&ssoToken={ssoToken}" target="_blank">CV2</a>,
-                 <a href="{company['Apply_Link_CV']}3&ssoToken={ssoToken}" target="_blank">CV3</a>)
+                (<a href="{company['Apply_Link_CV']}1" target="_blank">CV1</a>,
+                 <a href="{company['Apply_Link_CV']}2" target="_blank">CV2</a>,
+                 <a href="{company['Apply_Link_CV']}3" target="_blank">CV3</a>)
             </td>
             <td style="border: 1px solid #ddd; padding: 8px;">
-                <a href="{company['Additional_Job_Description']}&ssoToken={ssoToken}" target="_blank">{company.get('CTC', 'N/A')}</a>
+                <a href="{company['Additional_Job_Description']}" target="_blank">{company.get('CTC', 'N/A')}</a>
             </td>
             <td style="border: 1px solid #ddd; padding: 8px;">{company['End_Date']}</td>
             <td style="border: 1px solid #ddd; padding: 8px;">{company['Interview_Date']}</td>
@@ -227,7 +227,7 @@ def format_companies(ssoToken, companies):
         <body>
             <div style="font-family: Arial, sans-serif; width: 90%; margin: 0 auto; border: 1px solid #333; padding: 20px; margin-bottom: 20px; border-radius: 10px; box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);">
                 <div align="center">
-                    !! Click <a href="{companies_url}" target="_blank">here</a>, in order to enable the links below !!
+                    !! Please <a href="{companies_url}" target="_blank">login here</a> before using the links below !!
                 </div>
                 <br>
                 <div align="center">
@@ -250,7 +250,7 @@ def format_companies(ssoToken, companies):
         </body>
     </html>
     """
-    companies_table = html_content.format(companies_url=f"{TPSTUDENT_URL}?ssoToken={ssoToken}" ,company_rows=company_rows)
+    companies_table = html_content.format(companies_url=TPSTUDENT_URL, company_rows=company_rows)
     message.attach(MIMEText(companies_table, "html"))
 
     return message
